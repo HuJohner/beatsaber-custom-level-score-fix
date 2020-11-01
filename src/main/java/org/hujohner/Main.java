@@ -25,12 +25,14 @@ public class Main {
     private static Map<String, SongHashData> songHashData;
 
     public static void main(String[] args) {
+        System.out.println("Starting program...");
         Main.gson = new Gson();
         initialiseData();
         if (Main.localLeaderboards == null || Main.songHashData == null) {
             throw new RuntimeException("An error occurred.");
         }
 
+        System.out.println("Checking for old song scores...");
         List<LeaderboardEntry> existingEntries = new ArrayList<>();
         Map<String, LeaderboardEntry> fixedEntries = new HashMap<>();
         Map<String, String> hashSongNameMap = getHashSongNameMap();
@@ -42,12 +44,15 @@ public class Main {
                 }
 
                 if (hashSongNameMap.containsKey(songId)) { // song hash
-                    entry.id = entry.id.replaceFirst(songId, hashSongNameMap.get(songId));
+                    String songName = hashSongNameMap.get(songId);
+                    System.out.println("Found old scores for " + songName);
+                    entry.id = entry.id.replaceFirst(songId, songName);
                     fixedEntries.put(entry.id, entry);
                 }
             }
         }
 
+        System.out.println("Merging existing scores...");
         for (LeaderboardEntry entry : existingEntries) {
             if (fixedEntries.containsKey(entry.id)) {
                 LeaderboardEntry fixedEntry = fixedEntries.get(entry.id);
@@ -57,9 +62,13 @@ public class Main {
         }
 
         saveData();
+
+        System.out.println("Done.");
+        waitForEnter();
     }
 
     private static void initialiseData() {
+        System.out.println("Reading files...");
         BufferedReader br;
         try {
             br = new BufferedReader(new FileReader(BEAT_SABER_LOCAL_LEADERBOARDS));
@@ -73,6 +82,7 @@ public class Main {
     }
 
     private static void saveData() {
+        System.out.println("Saving leaderboard...");
         BufferedWriter bw = null;
         try {
             bw = new BufferedWriter(new FileWriter(BEAT_SABER_LOCAL_LEADERBOARDS));
@@ -123,5 +133,13 @@ public class Main {
             result = s.substring(0, s.lastIndexOf("90Degree"));
         }
         return result;
+    }
+
+    public static void waitForEnter() {
+        Console c = System.console();
+        if (c != null) {
+            c.format("\nPress ENTER to proceed.\n");
+            c.readLine();
+        }
     }
 }
