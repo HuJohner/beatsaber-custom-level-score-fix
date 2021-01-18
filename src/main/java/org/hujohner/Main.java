@@ -13,6 +13,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Main {
 
@@ -20,14 +22,17 @@ public class Main {
     public static final String BEAT_SABER_LOCAL_LEADERBOARDS = BEAT_SABER_APPLICATION_DATA + "\\LocalLeaderboards.dat";
     public static final String BEAT_SABER_SONG_HASH_DATA = BEAT_SABER_APPLICATION_DATA + "\\SongHashData.dat";
 
+    private static final String REVERSE_EXECUTION = "-reverse";
+
     private static Gson gson;
     private static LocalLeaderboards localLeaderboards;
     private static Map<String, SongHashData> songHashData;
+    private static boolean reverse = false;
 
     public static void main(String[] args) {
         System.out.println("Starting program...");
         Main.gson = new Gson();
-        initialiseData();
+        initialiseData(args);
         if (Main.localLeaderboards == null || Main.songHashData == null) {
             throw new RuntimeException("An error occurred.");
         }
@@ -37,7 +42,7 @@ public class Main {
         Map<String, LeaderboardEntry> fixedEntries = new HashMap<>();
         Map<String, String> hashSongNameMap = getHashSongNameMap();
         for (LeaderboardEntry entry : Main.localLeaderboards.data) {
-            if (entry.id.startsWith("custom_level_")) {
+            if (entry.id.startsWith("custom_level_")) { // only process custom songs
                 String songId = removeDifficulty(entry.id.replaceFirst("custom_level_", ""));
                 if (hashSongNameMap.containsValue(songId)) { // song name
                     existingEntries.add(entry);
@@ -46,7 +51,7 @@ public class Main {
                 if (hashSongNameMap.containsKey(songId)) { // song hash
                     String songName = hashSongNameMap.get(songId);
                     System.out.println("Found old scores for " + songName);
-                    entry.id = entry.id.replaceFirst(songId, songName);
+                    entry.id = entry.id.replaceFirst(Pattern.quote(songId), Matcher.quoteReplacement(songName));
                     fixedEntries.put(entry.id, entry);
                 }
             }
@@ -67,7 +72,7 @@ public class Main {
         waitForEnter();
     }
 
-    private static void initialiseData() {
+    private static void initialiseData(String[] args) {
         System.out.println("Reading files...");
         BufferedReader br;
         try {
@@ -78,6 +83,12 @@ public class Main {
             Main.songHashData = gson.fromJson(br, mapType);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
+        }
+
+        for (String arg : args) {
+            if (REVERSE_EXECUTION.equalsIgnoreCase(arg)) {
+                reverse = true;
+            }
         }
     }
 
@@ -103,7 +114,11 @@ public class Main {
     private static Map<String, String> getHashSongNameMap() {
         Map<String, String> map = new HashMap<>();
         for (String songPath : Main.songHashData.keySet()) {
-            map.put(Main.songHashData.get(songPath).songHash, Paths.get(songPath).getFileName().toString());
+            if (Main.reverse) {
+                map.put(Paths.get(songPath).getFileName().toString(), Main.songHashData.get(songPath).songHash);
+            } else {
+                map.put(Main.songHashData.get(songPath).songHash, Paths.get(songPath).getFileName().toString());
+            }
         }
         return map;
     }
